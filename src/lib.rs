@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use wasm_bindgen::prelude::wasm_bindgen;
 use js_sys::Int8Array;
 use js_sys::JsString;
-use js_sys::Promise;
 
 type Field<T> = [T; 81];
 
@@ -157,18 +156,6 @@ pub fn solve(field: Int8Array) -> Result<Int8Array, JsString> {
 	match res {
 		DeadEnd => Result::Err(JsString::from("field is unsolvable")),
 		Solved(solution) => Result::Ok(Int8Array::from(solution.as_ref()))
-	}
-}
-
-#[wasm_bindgen]
-pub async fn solve_async(field: Int8Array) -> Result<Promise, JsString> {
-	let solution = solve(field);
-
-	match solution {
-		Err(e) => Result::Err(e),
-		Ok(solution) => Result::Ok(
-			js_sys::Promise::resolve(&solution)
-		)
 	}
 }
 

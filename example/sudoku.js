@@ -98,8 +98,8 @@ const app = createApp({
         }
     },
     methods: {
-        async solve() {
-            this.solution = await Solver.solve(Int8Array.from(this.field))
+        solve() {
+            this.solution = Solver.solve(Int8Array.from(this.field))
         }
     }
 });
