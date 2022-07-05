@@ -66,38 +66,38 @@ const NUMBERS: [i8; 9] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const INDICES: [usize; 9] = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 fn row_for_pos(pos: usize) -> usize {
-	return pos / 9;
+	pos / 9
 }
 
 fn col_for_pos(pos: usize) -> usize {
-	return pos % 9;
+	pos % 9
 }
 
 fn quadrant_for_pos(pos: usize) -> [usize; 9] {
-	return QUADRANTS
+	QUADRANTS
 		.iter()
 		.find(|&x| x.contains(&pos))
 		.unwrap()
-		.clone();
+		.clone()
 }
 
 fn constraints_for_part<F>(field: &Field<i8>, index_function: F) -> HashSet<i8> where F: Fn(usize) -> usize {
 	let numbers = HashSet::from(NUMBERS);
 	let values = HashSet::from(INDICES.map(|i| field[index_function(i)]));
 
-	return numbers.difference(&values).map(|x| x.clone()).collect();
+	numbers.difference(&values).map(|x| x.clone()).collect()
 }
 
 fn constraints_for_row(row: usize, field: &Field<i8>) -> HashSet<i8> {
-	return constraints_for_part(&field, |i| i + row * 9);
+	constraints_for_part(&field, |i| i + row * 9)
 }
 
 fn constraints_for_col(col: usize, field: &Field<i8>) -> HashSet<i8> {
-	return constraints_for_part(&field, |i| i * 9 + col);
+	constraints_for_part(&field, |i| i * 9 + col)
 }
 
 fn constraints_for_quadrant(quad: &[usize; 9], field: &Field<i8>) -> HashSet<i8> {
-	return constraints_for_part(&field, &|i| quad[i]);
+	constraints_for_part(&field, &|i| quad[i])
 }
 
 fn constraints_for_pos(pos: usize, field: &Field<i8>) -> HashSet<i8> {
@@ -105,10 +105,10 @@ fn constraints_for_pos(pos: usize, field: &Field<i8>) -> HashSet<i8> {
 	let col_constraints = constraints_for_col(col_for_pos(pos), &field);
 	let quad_constraints = constraints_for_quadrant(&quadrant_for_pos(pos), &field);
 
-	return &(&row_constraints & &col_constraints) & &quad_constraints;
+	&(&row_constraints & &col_constraints) & &quad_constraints
 }
 
-fn solve_impl(field: &Field<i8>, result: &Field<i8>, pos: usize) -> Solution {
+fn solve_impl(field: &Field<i8>, mut result: Field<i8>, pos: usize) -> Solution {
 	let len = field.len();
 
 	if pos > len {
@@ -116,22 +116,22 @@ fn solve_impl(field: &Field<i8>, result: &Field<i8>, pos: usize) -> Solution {
 	}
 
 	if pos == len {
-		return Solved(result.clone());
+		return Solved(result);
 	}
-	let mut constraints = HashSet::new();
+
+	let mut constraints;
 
 	if field[pos] != -1 {
+		constraints = HashSet::new();
 		constraints.insert(field[pos]);
 	} else {
 		constraints = constraints_for_pos(pos, &result);
 	}
 
-	let mut new_result = result.clone();
-
 	for constraint in constraints {
-		new_result[pos] = constraint;
+		result[pos] = constraint;
 
-		let res = solve_impl(&field, &new_result, pos + 1);
+		let res = solve_impl(&field, result, pos + 1);
 
 		if res != DeadEnd {
 			return res;
@@ -142,7 +142,7 @@ fn solve_impl(field: &Field<i8>, result: &Field<i8>, pos: usize) -> Solution {
 }
 
 #[wasm_bindgen]
-pub fn solve(field: Int8Array) -> Result<Int8Array, JsString> {
+pub fn solve(field: &Int8Array) -> Result<Int8Array, JsString> {
 	if field.length() != 81 {
 		return Result::Err(JsString::from("field has wrong size"));
 	}
@@ -151,7 +151,7 @@ pub fn solve(field: Int8Array) -> Result<Int8Array, JsString> {
 
 	field.copy_to(&mut field_copy);
 
-	let res = solve_impl(&field_copy, &field_copy, 0);
+	let res = solve_impl(&field_copy, field_copy, 0);
 
 	match res {
 		DeadEnd => Result::Err(JsString::from("field is unsolvable")),
@@ -254,7 +254,7 @@ mod tests {
 
 	#[test]
 	fn test_solve() {
-		let res = solve_impl(&FIELD_EASY, &FIELD_EASY, 0);
+		let res = solve_impl(&FIELD_EASY, FIELD_EASY, 0);
 
 		assert_ne!(res, crate::DeadEnd);
 	}

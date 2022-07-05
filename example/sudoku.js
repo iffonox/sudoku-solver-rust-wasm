@@ -63,8 +63,8 @@ const app = createApp({
     // language=HTML
     template: `
         <div class="container">
-            <div v-for="n in 9" class="row">
-                <div v-for="m in 9" class="col">
+            <div v-for="n in 9" class="row" :class="'n-' + n">
+                <div v-for="m in 9" class="col" :class="'n-' + m">
                     <div class="field" v-if="field[(n-1) * 9 + (m-1)] !== -1">{{field[(n-1) * 9 + (m-1)]}}</div>
                     <div v-else class="solution" v-if="isSolved && solution[(n-1) * 9 + (m-1)] !== -1">
                         {{solution[(n-1) * 9 + (m-1)]}}
