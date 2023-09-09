@@ -1,5 +1,4 @@
 import * as Solver from "../pkg/sudoku.js";
-import init from "../pkg/sudoku.js";
 
 const fieldEasy = [
     9, 4, 5, -1, -1, 8, -1, -1, 6,
@@ -105,7 +104,7 @@ const app = createApp({
 });
 
 (async () => {
-    await init();
+    await Solver.default();
 
     app.mount('#app');
 })();

@@ -1,5 +1,4 @@
 use crate::Solution::{DeadEnd, Solved};
-use std::collections::HashSet;
 use wasm_bindgen::prelude::wasm_bindgen;
 use js_sys::Int8Array;
 use js_sys::JsString;
@@ -12,6 +11,18 @@ pub enum Solution {
 	DeadEnd,
 	Solved(Field<i8>),
 }
+
+const QUADRANT_INDICES: [usize; 81] = [
+	0, 0, 0, 1, 1, 1, 2, 2, 2,
+	0, 0, 0, 1, 1, 1, 2, 2, 2,
+	0, 0, 0, 1, 1, 1, 2, 2, 2,
+	3, 3, 3, 4, 4, 4, 5, 5, 5,
+	3, 3, 3, 4, 4, 4, 5, 5, 5,
+	3, 3, 3, 4, 4, 4, 5, 5, 5,
+	6, 6, 6, 7, 7, 7, 8, 8, 8,
+	6, 6, 6, 7, 7, 7, 8, 8, 8,
+	6, 6, 6, 7, 7, 7, 8, 8, 8,
+];
 
 const QUADRANTS: [[usize; 9]; 9] = [
 	[
@@ -63,8 +74,6 @@ const QUADRANTS: [[usize; 9]; 9] = [
 
 const NUMBERS: [i8; 9] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-const INDICES: [usize; 9] = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-
 fn row_for_pos(pos: usize) -> usize {
 	pos / 9
 }
@@ -74,38 +83,54 @@ fn col_for_pos(pos: usize) -> usize {
 }
 
 fn quadrant_for_pos(pos: usize) -> [usize; 9] {
-	QUADRANTS
-		.iter()
-		.find(|&x| x.contains(&pos))
-		.unwrap()
-		.clone()
+	QUADRANTS[QUADRANT_INDICES[pos]]
 }
 
-fn constraints_for_part<F>(field: &Field<i8>, index_function: F) -> HashSet<i8> where F: Fn(usize) -> usize {
-	let numbers = HashSet::from(NUMBERS);
-	let values = HashSet::from(INDICES.map(|i| field[index_function(i)]));
+fn constraints_for_part<F>(field: &Field<i8>, index_function: F) -> [i8;9] where F: Fn(usize) -> usize {
+	let mut constraints = NUMBERS;
 
-	numbers.difference(&values).map(|x| x.clone()).collect()
+	for i in 0..9 {
+		let field_index = index_function(i);
+		let value = field[field_index];
+
+		if value != -1 {
+			let index: usize = (value - 1) as usize;
+
+			constraints[index] = -1;
+		}
+	}
+
+	constraints
 }
 
-fn constraints_for_row(row: usize, field: &Field<i8>) -> HashSet<i8> {
+fn constraints_for_row(row: usize, field: &Field<i8>) -> [i8;9] {
 	constraints_for_part(&field, |i| i + row * 9)
 }
 
-fn constraints_for_col(col: usize, field: &Field<i8>) -> HashSet<i8> {
+fn constraints_for_col(col: usize, field: &Field<i8>) -> [i8;9] {
 	constraints_for_part(&field, |i| i * 9 + col)
 }
 
-fn constraints_for_quadrant(quad: &[usize; 9], field: &Field<i8>) -> HashSet<i8> {
+fn constraints_for_quadrant(quad: &[usize; 9], field: &Field<i8>) -> [i8;9] {
 	constraints_for_part(&field, &|i| quad[i])
 }
 
-fn constraints_for_pos(pos: usize, field: &Field<i8>) -> HashSet<i8> {
+fn constraints_for_pos(pos: usize, field: &Field<i8>) -> [i8;9] {
 	let row_constraints = constraints_for_row(row_for_pos(pos), &field);
 	let col_constraints = constraints_for_col(col_for_pos(pos), &field);
 	let quad_constraints = constraints_for_quadrant(&quadrant_for_pos(pos), &field);
 
-	&(&row_constraints & &col_constraints) & &quad_constraints
+	let mut constraints: [i8; 9] = [-1; 9];
+
+	for i in 0..9 {
+
+
+		if row_constraints[i] != -1 && col_constraints[i] != -1 && quad_constraints[i] != -1 {
+			constraints[i] = row_constraints[i]
+		}
+	}
+
+	constraints
 }
 
 fn solve_impl(field: &Field<i8>, mut result: Field<i8>, pos: usize) -> Solution {
@@ -119,16 +144,20 @@ fn solve_impl(field: &Field<i8>, mut result: Field<i8>, pos: usize) -> Solution 
 		return Solved(result);
 	}
 
-	let mut constraints;
+	let mut constraints: [i8; 9] = [-1; 9];
 
 	if field[pos] != -1 {
-		constraints = HashSet::new();
-		constraints.insert(field[pos]);
+		let index: usize = ( field[pos] - 1) as usize;
+		constraints[index] = field[pos];
 	} else {
 		constraints = constraints_for_pos(pos, &result);
 	}
 
 	for constraint in constraints {
+		if constraint == -1 {
+			continue;
+		}
+
 		result[pos] = constraint;
 
 		let res = solve_impl(&field, result, pos + 1);
@@ -161,7 +190,6 @@ pub fn solve(field: &Int8Array) -> Result<Int8Array, JsString> {
 
 #[cfg(test)]
 mod tests {
-	use std::collections::HashSet;
 	use crate::solve_impl;
 
 	const FIELD_EASY: crate::Field<i8> = [
@@ -206,13 +234,13 @@ mod tests {
 
 	#[test]
 	fn test_row_constraint() {
-		let test_set_0: HashSet<i8> = HashSet::from([1, 2, 3, 7]);
+		let test_set_0: [i8; 9] = [1, 2, 3, -1, -1, -1, 7, -1, -1];
 		let res_set_0 = crate::constraints_for_row(0, &FIELD_EASY);
 
-		let test_set_1: HashSet<i8> = HashSet::from([1, 4, 5, 8]);
+		let test_set_1: [i8; 9] = [1, -1, -1, 4, 5, -1, -1, 8, -1];
 		let res_set_1 = crate::constraints_for_row(3, &FIELD_EASY);
 
-		let test_set_2: HashSet<i8> = HashSet::from([1, 4, 6, 7, 9]);
+		let test_set_2: [i8; 9] = [1, -1, -1, 4, -1, 6, 7, -1, 9];
 		let res_set_2 = crate::constraints_for_row(8, &FIELD_EASY);
 
 		assert_eq!(res_set_0, test_set_0);
@@ -222,13 +250,13 @@ mod tests {
 
 	#[test]
 	fn test_col_constraint() {
-		let test_set_0: HashSet<i8> = HashSet::from([1, 4, 5, 8]);
+		let test_set_0: [i8; 9] = [1, -1, -1, 4, 5, -1, -1, 8, -1];
 		let res_set_0 = crate::constraints_for_col(0, &FIELD_EASY);
 
-		let test_set_1: HashSet<i8> = HashSet::from([1, 2, 4, 6, 7, 9]);
+		let test_set_1: [i8; 9] = [1, 2, -1, 4, -1, 6, 7, -1, 9];
 		let res_set_1 = crate::constraints_for_col(3, &FIELD_EASY);
 
-		let test_set_2: HashSet<i8> = HashSet::from([3, 4, 7]);
+		let test_set_2: [i8; 9] = [-1, -1, 3, 4, -1, -1, 7, -1, -1];
 		let res_set_2 = crate::constraints_for_col(8, &FIELD_EASY);
 
 		assert_eq!(res_set_0, test_set_0);
@@ -238,13 +266,13 @@ mod tests {
 
 	#[test]
 	fn test_quad_constraint() {
-		let test_set_0: HashSet<i8> = HashSet::from([1, 6, 7, 8]);
+		let test_set_0: [i8; 9] = [1, -1, -1, -1, -1, 6, 7, 8, -1];
 		let res_set_0 = crate::constraints_for_quadrant(&crate::QUADRANTS[0], &FIELD_EASY);
 
-		let test_set_1: HashSet<i8> = HashSet::from([1, 2, 5, 8, 9]);
+		let test_set_1: [i8; 9] = [1, 2, -1, -1, 5, -1, -1, 8, 9];
 		let res_set_1 = crate::constraints_for_quadrant(&crate::QUADRANTS[3], &FIELD_EASY);
 
-		let test_set_2: HashSet<i8> = HashSet::from([2, 3, 4, 6, 9]);
+		let test_set_2: [i8; 9] = [-1, 2, 3, 4, -1, 6, -1, -1, 9];
 		let res_set_2 = crate::constraints_for_quadrant(&crate::QUADRANTS[8], &FIELD_EASY);
 
 		assert_eq!(res_set_0, test_set_0);
